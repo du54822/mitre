@@ -40,6 +40,12 @@
 #include "ectf_params.h"
 #include "global_secrets.h"
 
+//AES
+#include <stdlib.h>
+#include <wolfssl/options.h>
+#include <wolfssl/wolfcrypt/aes.h>
+#include <wolfssl/wolfcrypt/random.h>
+
 /********************************* CONSTANTS **********************************/
 
 // Passed in through ectf-params.h
@@ -96,6 +102,9 @@ typedef enum {
     COMPONENT_CMD_ATTEST
 } component_cmd_t;
 
+
+/*******AES BUFFER***********/
+#define BUFFER_SIZE 4096
 /********************************* GLOBAL VARIABLES **********************************/
 // Variable for information stored in flash memory
 flash_entry flash_status;
@@ -471,35 +480,91 @@ void attempt_attest() {
     }
 }
 
-/*********************************** MAIN *************************************/
+/****************************************AESFUNCTION***************************/
+// Function to generate a random key
+void generate_random_key(unsigned char *key, int key_length) {
+    WC_RNG rng;
+    wc_InitRng(&rng);
+    wc_RNG_GenerateBlock(&rng, key, key_length);
+    wc_FreeRng(&rng);
+}
 
-int main() {
-    // Initialize board
-    init();
-
-    // Print the component IDs to be helpful
-    // Your design does not need to do this
-    print_info("Application Processor Started\n");
-
-    // Handle commands forever
-    char buf[100];
-    while (1) {
-        recv_input("Enter Command: ", buf);
-
-        // Execute requested command
-        if (!strcmp(buf, "list")) {
-            scan_components();
-        } else if (!strcmp(buf, "boot")) {
-            attempt_boot();
-        } else if (!strcmp(buf, "replace")) {
-            attempt_replace();
-        } else if (!strcmp(buf, "attest")) {
-            attempt_attest();
-        } else {
-            print_error("Unrecognized command '%s'\n", buf);
-        }
+// Function to encrypt a file
+int encrypt_file(const char *input_file, const char *output_file,
+                 const unsigned char *key, const unsigned char *iv) {
+    FILE *in_file = fopen(input_file, "rb");
+    if (!in_file) {
+        fprintf(stderr, "Error: Unable to open input file\n");
+        return 1;
     }
 
-    // Code never reaches here
+    FILE *out_file = fopen(output_file, "wb");
+    if (!out_file) {
+        fclose(in_file);
+        fprintf(stderr, "Error: Unable to open output file\n");
+        return 1;
+    }
+
+    Aes aes;
+    wc_AesSetKey(&aes, key, 256, iv, AES_ENCRYPTION);
+
+    unsigned char buffer[BUFFER_SIZE];
+    int bytes_read;
+    while ((bytes_read = fread(buffer, 1, BUFFER_SIZE, in_file)) > 0) {
+        wc_AesEncryptDirect(&aes, buffer, buffer);
+        fwrite(buffer, 1, bytes_read , out_file);
+    }
+
+    fclose(in_file);
+    fclose(out_file);
+
     return 0;
 }
+
+    /*********************************** MAIN *************************************/
+
+    int main() {
+        // Initialize board
+        init();
+        // Print the component IDs to be helpful
+        // Your design does not need to do this
+        print_info("Application Processor Started\n");
+
+        // Handle commands forever
+        char buf[100];
+        while (1) {
+            recv_input("Enter Command: ", buf);
+
+            // Execute requested command
+            if (!strcmp(buf, "list")) {
+                scan_components();
+            } else if (!strcmp(buf, "boot")) {
+                attempt_boot();
+            } else if (!strcmp(buf, "replace")) {
+                attempt_replace();
+            } else if (!strcmp(buf, "attest")) {
+                attempt_attest();
+            } else {
+                print_error("Unrecognized command '%s'\n", buf);
+            }
+        /********************AES ENCRYPTION***********/
+    const char *input_file = "/Users/dorisulysse/Desktop/mitre/application_processor/inc/ectf_Params.h";
+    const char *output_file = "/Users/dorisulysse/Desktop/mitre/application_processor/inc/encrypted_params.enc";
+    const int key_length = 32; // AES 256-bit key
+    unsigned char key[key_length];
+    const unsigned char iv[16] = "1234567890abcdef"; // 128-bit IV
+
+    // Generate random key
+    generate_random_key(key, key_length);
+
+
+            // Encrypt file
+    if (encrypt_file(input_file, output_file, key, iv) == 0) {
+        printf("File encrypted successfully\n");
+    } else {
+        printf("Failed to encrypt file\n");
+    }
+        }
+        // Code never reaches here
+        return 0;
+    }

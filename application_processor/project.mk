@@ -13,14 +13,15 @@
 
 # Add your config here!
 
-# This example is only compatible with the FTHR board,
-# so we override the BOARD value to hard-set it.
+
 override BOARD=FTHR_RevA
 MFLOAT_ABI=soft
 
 IPATH+=../deployment
 IPATH+=inc/
 VPATH+=src/
+# This example is only compatible with the FTHR board,
+# so we override the BOARD value to hard-set it.
 
 # ****************** eCTF Bootloader *******************
 # DO NOT REMOVE
