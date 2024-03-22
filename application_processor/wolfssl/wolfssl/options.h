@@ -144,9 +144,6 @@ extern "C" {
 #undef  NO_MD4
 #define NO_MD4
 
-#undef  WOLFSSL_ENCRYPTED_KEYS
-#define WOLFSSL_ENCRYPTED_KEYS
-
 #undef  WOLFSSL_SP_MATH_ALL
 #define WOLFSSL_SP_MATH_ALL
 
@@ -161,9 +158,6 @@ extern "C" {
 
 #undef  WOLFSSL_SYS_CA_CERTS
 #define WOLFSSL_SYS_CA_CERTS
-
-#undef  OPENSSL_EXTRA
-#define OPENSSL_EXTRA
 
 #undef  NO_DES3
 #define NO_DES3

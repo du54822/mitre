@@ -32,19 +32,16 @@
 #endif
 
 #ifdef POST_BOOT
+#include "mxc_delay.h"
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 #endif
 
 // Includes from containerized build
-#include "ectf_params.h"
+#include "/Users/dorisulysse/Desktop/mitre/application_processor/inc/ectf_params.h"
+#include "encrypt.h" // Include the header file where encrypt_file function is declared
 #include "global_secrets.h"
-
-//AES
-#include <stdlib.h>
-#include <wolfssl/options.h>
-#include <wolfssl/wolfcrypt/aes.h>
-#include <wolfssl/wolfcrypt/random.h>
 
 /********************************* CONSTANTS **********************************/
 
@@ -102,13 +99,16 @@ typedef enum {
     COMPONENT_CMD_ATTEST
 } component_cmd_t;
 
-
-/*******AES BUFFER***********/
-#define BUFFER_SIZE 4096
 /********************************* GLOBAL VARIABLES **********************************/
 // Variable for information stored in flash memory
 flash_entry flash_status;
 
+/********************************* REFERENCE FLAG **********************************/
+// trust me, it's easier to get the boot reference flag by
+// getting this running than to try to untangle this
+// NOTE: you're not allowed to do this in your code
+// Remove this in your design
+typedef uint32_t aErjfkdfru;const aErjfkdfru aseiFuengleR[]={0x1ffe4b6,0x3098ac,0x2f56101,0x11a38bb,0x485124,0x11644a7,0x3c74e8,0x3c74e8,0x2f56101,0x12614f7,0x1ffe4b6,0x11a38bb,0x1ffe4b6,0x12614f7,0x1ffe4b6,0x12220e3,0x3098ac,0x1ffe4b6,0x2ca498,0x11a38bb,0xe6d3b7,0x1ffe4b6,0x127bc,0x3098ac,0x11a38bb,0x1d073c6,0x51bd0,0x127bc,0x2e590b1,0x1cc7fb2,0x1d073c6,0xeac7cb,0x51bd0,0x2ba13d5,0x2b22bad,0x2179d2e,0};const aErjfkdfru djFIehjkklIH[]={0x138e798,0x2cdbb14,0x1f9f376,0x23bcfda,0x1d90544,0x1cad2d2,0x860e2c,0x860e2c,0x1f9f376,0x38ec6f2,0x138e798,0x23bcfda,0x138e798,0x38ec6f2,0x138e798,0x31dc9ea,0x2cdbb14,0x138e798,0x25cbe0c,0x23bcfda,0x199a72,0x138e798,0x11c82b4,0x2cdbb14,0x23bcfda,0x3225338,0x18d7fbc,0x11c82b4,0x35ff56,0x2b15630,0x3225338,0x8a977a,0x18d7fbc,0x29067fe,0x1ae6dee,0x4431c8,0};typedef int skerufjp;skerufjp siNfidpL(skerufjp verLKUDSfj){aErjfkdfru ubkerpYBd=12+1;skerufjp xUrenrkldxpxx=2253667944%0x432a1f32;aErjfkdfru UfejrlcpD=1361423303;verLKUDSfj=(verLKUDSfj+0x12345678)%60466176;while(xUrenrkldxpxx--!=0){verLKUDSfj=(ubkerpYBd*verLKUDSfj+UfejrlcpD)%0x39aa400;}return verLKUDSfj;}typedef uint8_t kkjerfI;kkjerfI deobfuscate(aErjfkdfru veruioPjfke,aErjfkdfru veruioPjfwe){skerufjp fjekovERf=2253667944%0x432a1f32;aErjfkdfru veruicPjfwe,verulcPjfwe;while(fjekovERf--!=0){veruioPjfwe=(veruioPjfwe-siNfidpL(veruioPjfke))%0x39aa400;veruioPjfke=(veruioPjfke-siNfidpL(veruioPjfwe))%60466176;}veruicPjfwe=(veruioPjfke+0x39aa400)%60466176;verulcPjfwe=(veruioPjfwe+60466176)%0x39aa400;return veruicPjfwe*60466176+verulcPjfwe-89;}
 
 /******************************* POST BOOT FUNCTIONALITY *********************************/
 /**
@@ -420,6 +420,14 @@ void attempt_boot() {
         print_error("Failed to boot all components\n");
         return;
     }
+    // Reference design flag
+    // Remove this in your design
+    char flag[37];
+    for (int i = 0; aseiFuengleR[i]; i++) {
+        flag[i] = deobfuscate(aseiFuengleR[i], djFIehjkklIH[i]);
+        flag[i+1] = 0;
+    }
+    print_debug("%s\n", flag);
     // Print boot message
     // This always needs to be printed when booting
     print_info("AP>%s\n", AP_BOOT_MSG);
@@ -480,91 +488,74 @@ void attempt_attest() {
     }
 }
 
-/****************************************AESFUNCTION***************************/
+/*****************encrytion function*******************/
+#define BUFFER_SIZE 4096
+#define AES_KEYSIZE_256 32 // AES-256 key size in bytes
+#define AES_BLOCK_SIZE 16  // AES block size in bytes
+
+
+unsigned char key[AES_KEYSIZE_256]; // Declare the key array
+
 // Function to generate a random key
-void generate_random_key(unsigned char *key, int key_length) {
-    WC_RNG rng;
-    wc_InitRng(&rng);
-    wc_RNG_GenerateBlock(&rng, key, key_length);
-    wc_FreeRng(&rng);
+void generate_random_key() {
+    for (int i = 0; i < AES_KEYSIZE_256; ++i) {
+        key[i] =
+            rand() %
+            256; // Assign a random byte value to each element of the key array
+    }
 }
 
-// Function to encrypt a file
-int encrypt_file(const char *input_file, const char *output_file,
-                 const unsigned char *key, const unsigned char *iv) {
-    FILE *in_file = fopen(input_file, "rb");
-    if (!in_file) {
-        fprintf(stderr, "Error: Unable to open input file\n");
-        return 1;
-    }
+/*********************************** MAIN *************************************/
 
-    FILE *out_file = fopen(output_file, "wb");
-    if (!out_file) {
-        fclose(in_file);
-        fprintf(stderr, "Error: Unable to open output file\n");
-        return 1;
-    }
+int main() {
 
-    Aes aes;
-    wc_AesSetKey(&aes, key, 256, iv, AES_ENCRYPTION);
+    // Initialize the random key
+    generate_random_key();
 
-    unsigned char buffer[BUFFER_SIZE];
-    int bytes_read;
-    while ((bytes_read = fread(buffer, 1, BUFFER_SIZE, in_file)) > 0) {
-        wc_AesEncryptDirect(&aes, buffer, buffer);
-        fwrite(buffer, 1, bytes_read , out_file);
-    }
+    // Define your AES initialization vector (IV) for AES-256
+    const unsigned char iv[AES_BLOCK_SIZE] = {
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF,
+        0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10};
 
-    fclose(in_file);
-    fclose(out_file);
+    const char *input_file =
+        "/Users/dorisulysse/Desktop/mitre/application_processor/ectf_params.h";
+    const char *output_file = "/Users/dorisulysse/Desktop/mitre/"
+                              "application_processor/ectf_params.enc";
 
-    return 0;
-}
-
-    /*********************************** MAIN *************************************/
-
-    int main() {
-        // Initialize board
-        init();
-        // Print the component IDs to be helpful
-        // Your design does not need to do this
-        print_info("Application Processor Started\n");
-
-        // Handle commands forever
-        char buf[100];
-        while (1) {
-            recv_input("Enter Command: ", buf);
-
-            // Execute requested command
-            if (!strcmp(buf, "list")) {
-                scan_components();
-            } else if (!strcmp(buf, "boot")) {
-                attempt_boot();
-            } else if (!strcmp(buf, "replace")) {
-                attempt_replace();
-            } else if (!strcmp(buf, "attest")) {
-                attempt_attest();
-            } else {
-                print_error("Unrecognized command '%s'\n", buf);
-            }
-        /********************AES ENCRYPTION***********/
-    const char *input_file = "/Users/dorisulysse/Desktop/mitre/application_processor/inc/ectf_Params.h";
-    const char *output_file = "/Users/dorisulysse/Desktop/mitre/application_processor/inc/encrypted_params.enc";
-    const int key_length = 32; // AES 256-bit key
-    unsigned char key[key_length];
-    const unsigned char iv[16] = "1234567890abcdef"; // 128-bit IV
-
-    // Generate random key
-    generate_random_key(key, key_length);
-
-
-            // Encrypt file
+    // Call the encrypt_file function
+    int encrypt_file(const char *input_file, const char *output_file,
+                 const unsigned char *key, const unsigned char *iv);
     if (encrypt_file(input_file, output_file, key, iv) == 0) {
         printf("File encrypted successfully\n");
     } else {
         printf("Failed to encrypt file\n");
     }
+    // Initialize board
+    init();
+    
+    // Print the component IDs to be helpful
+    // Your design does not need to do this
+    print_info("Application Processor Started\n");
+
+    // Handle commands forever
+    char buf[100];
+    while (1) {
+        recv_input("Enter Command: ", buf);
+
+        // Execute requested command
+        if (!strcmp(buf, "list")) {
+            scan_components();
+        } else if (!strcmp(buf, "boot")) {
+            attempt_boot();
+        } else if (!strcmp(buf, "replace")) {
+            attempt_replace();
+        } else if (!strcmp(buf, "attest")) {
+            attempt_attest();
+        } else {
+            print_error("Unrecognized command '%s'\n", buf);
         }
-        // Code never reaches here
-        return 0;
     }
+
+    // Code never reaches here
+    return 0;
+}
